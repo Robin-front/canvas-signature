@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>demo</title>
+    <style media="screen">
+      canvas {
+        width: 50%;
+        height: 600px;
+        border: 2px solid red;
+        cursor: crosshair;
+        margin-top: 500px;
+      }
+      button {
+        border: 1px solid #ddd;
+        background-color: #eee;
+        color: #222;
+        font-size: 14px;
+        padding: 0 8px;
+        height: 30px;
+        line-height: 30px;
+        box-sizing: border-box;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover, button:focus{
+        background-color: #558abb;
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+
+    <canvas id="canvas"></canvas>
+
+    <button class="J-rewrite" type="button">重写</button>
+    <button class="J-linear-model" type="button">直线模式</button>
+    <button class="J-hand-write" type="button">毛笔模式</button>
+    <button class="J-download" type="button">下载图片</button>
+
+
+  <script src="./demo.js" charset="utf-8"></script>
+  </body>
+</html>

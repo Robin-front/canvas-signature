@@ -1,0 +1,23 @@
+{
+  "name": "handWrite",
+  "version": "1.0.0",
+  "main": "dist/handWrite.js",
+  "author": "robin",
+  "license": "ISC",
+  "scripts": {
+    "start": "webpack-dev-server",
+    "build": "rm -rf dist && webpack --config webpack.prod.js",
+    "prepublish": "npm run build"
+  },
+  "dependencies": {
+    "uglifyjs-webpack-plugin": "^0.4.6",
+    "webpack": "^3.5.5",
+    "webpack-dev-server": "^2.7.1",
+    "webpack-merge": "^4.1.0"
+  },
+  "devDependencies": {
+    "babel-core": "^6.26.0",
+    "babel-loader": "^7.1.2",
+    "babel-preset-env": "^1.6.0"
+  }
+}
