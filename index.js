@@ -147,11 +147,6 @@ export default class HandWrite {
     return Math.sqrt(Math.pow(dx, 2) + Math.pow(dy, 2));
   }
 
-  clear() {
-    const canvas = this.canvas;
-    this.ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }
-
   destroy() {
     this.canvas.removeEventListener('touchstart', this.start.bind(this), false);
     this.canvas.removeEventListener('mousedown', this.start.bind(this), false);
@@ -161,7 +156,7 @@ export default class HandWrite {
     this.canvas.removeEventListener('mouseup', this.up.bind(this), false);
   }
 
-  clearCanvas() {
+  clear() {
     const {canvas, ctx} = this;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   }
@@ -185,7 +180,7 @@ export default class HandWrite {
     return canvas.toDataURL(type);
   }
 
-  downloadPNGImage(type='png', canvas = this.canvas) {
+  downloadImage(type='png', canvas = this.canvas) {
     type = this.formatType(type);
     const url = canvas.toDataURL(type).replace(type, 'image/octet-stream');
     document.location.href = url;

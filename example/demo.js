@@ -10,7 +10,7 @@ const $handWriteModel = document.querySelector('.J-hand-write');
 const $downloadPNGImage = document.querySelector('.J-download');
 
 $rewrite.addEventListener('click', function (){
-  instance.clearCanvas();
+  instance.clear();
 }, false);
 
 $handWriteModel.addEventListener('click', function (){
@@ -22,5 +22,5 @@ $linearModel.addEventListener('click', function (){
 }, false);
 
 $downloadPNGImage.addEventListener('click', function (){
-  instance.downloadPNGImage('jpeg');
+  instance.downloadImage('jpeg');
 }, false);
