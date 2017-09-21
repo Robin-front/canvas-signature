@@ -1,69 +1,102 @@
 const noop = () => {}
 const debug = 1 ? console.log.bind(null, '[handWrite]') : noop;
 const PI = Math.PI;
+
+const addEventListener = (target, event, callback) => {
+  target.addEventListener(event, callback, false);
+  return {
+    remove() {
+      target.removeEventListener(event, callback, false);
+    }
+  }
+}
 export default class HandWrite {
   constructor(canvas) {
-
     this.canvas = canvas;
     const ctx = canvas.getContext('2d');
-
-    const devicePixelRatio = window.devicePixelRatio;
-    const width = canvas.offsetWidth;
-    const height = canvas.offsetHeight;
-    if (devicePixelRatio) {
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
-      canvas.height = height * devicePixelRatio; // 画布宽高放大
-      canvas.width = width * devicePixelRatio;
-      ctx.scale(devicePixelRatio, devicePixelRatio); // 画布内容放大相同的倍数
-    }
-
     this.ctx = ctx;
+    this._resize();
+
     ctx.fillStyle = '#f00';
     ctx.strokeStyle = '#f00';
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    // ctx.shadowBlur = 1;
-    // ctx.shadowColor = '#000';
-    ctx.lineWidth = 6;
+    ctx.lineWidth = 3;
 
     this.lastPos = {};
-    this.drawabled = false;
-    this.isHandWrittingModel = true;
+    this._drawabled = false;
+    this._isHandWrittingModel = true;
     this.bindEvents();
 
   }
 
+  _resize() {
+    const devicePixelRatio = Math.max(window.devicePixelRatio||1, 1);
+    const {canvas, ctx} = this;
+    const width = canvas.offsetWidth;
+    const height = canvas.offsetHeight;
+
+    canvas.height = height * devicePixelRatio; // 画布宽高放大
+    canvas.width = width * devicePixelRatio;
+    ctx.scale(devicePixelRatio, devicePixelRatio); // 画布内容放大相同的倍数
+  }
+
   bindEvents() {
-    this.canvas.addEventListener('touchstart', this.start.bind(this), false);
-    this.canvas.addEventListener('mousedown', this.start.bind(this), false);
-    this.canvas.addEventListener('touchend', this.up.bind(this), false);
-    this.canvas.addEventListener('mouseup', this.up.bind(this), false);
-    this.canvas.addEventListener('mouseleave', this.up.bind(this), false);
-  }
-
-  __isMobile() {
-    return /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
-  }
-
-  draw(pos) {
-    const {ctx, lastPos, isHandWrittingModel} = this;
-    if (isHandWrittingModel) {
-      this.drawWithArc(pos);
+    if (this._isMobile()){
+      this._addTouchEvent();
     } else {
-      this.drawWithLine(pos);
+      this._addMouseEvent();
     }
   }
 
-  drawWithLine(pos) {
+  _addTouchEvent() {
+    const canvas = this.canvas;
+    this._touchstartEvent = addEventListener(canvas, 'touchstart', this._start.bind(this));
+    this._touchmoveEvent = addEventListener(canvas, 'touchmove', this._move.bind(this));
+    this._touchendEvent = addEventListener(document, 'touchend', this._end.bind(this));
+  }
+
+  _addMouseEvent() {
+    const canvas = this.canvas;
+    this._mousedownEvent = addEventListener(canvas, 'mousedown', this._start.bind(this));
+    this._mousemoveEvent = addEventListener(canvas, 'mousemove', this._move.bind(this));
+    this._mouseupEvent = addEventListener(document, 'mouseup', this._end.bind(this));
+    this._mouseleaveEvent = addEventListener(canvas, 'mouseleave', this._end.bind(this));
+  }
+
+  _removeTouchEvent() {
+    this._touchstartEvent && this._touchstartEvent.remove();
+    this._touchmoveEvent && this._touchmoveEvent.remove();
+    this._touchendEvent && this._touchendEvent.remove();
+  }
+
+  _removeMouseEvent() {
+    this._mousedownEvent && this._mousedownEvent.remove();
+    this._mousemoveEvent && this._mousemoveEvent.remove();
+    this._mouseupEvent && this._mouseupEvent.remove();
+    this._mouseleaveEvent && this._mouseleaveEvent.remove();
+  }
+
+  _isMobile() {
+    return /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
+  }
+
+  _draw(pos) {
+    const {ctx, lastPos, _isHandWrittingModel} = this;
+    if (_isHandWrittingModel) {
+      this._drawWithArc(pos);
+    } else {
+      this._drawWithLine(pos);
+    }
+  }
+
+  _drawWithLine(pos) {
     const ctx = this.ctx;
     ctx.lineTo(pos.x, pos.y);
     ctx.stroke();
   }
 
-  drawWithArc(pos, r=3) {
+  _drawWithArc(pos, r=3) {
     const {ctx, lastPos, lastR=0} = this;
-    const distance = this.getDistance(pos, lastPos);
+    const distance = this._getDistance(pos, lastPos);
     if (distance < 2) { return false;} // 避免单点
     const threshold = 30; // 移速相关，过大或过小都会造成笔画粗细不明显
     let rate = distance > threshold ? 1 : distance/threshold;
@@ -84,61 +117,63 @@ export default class HandWrite {
     lastPos.y = pos.y;
   }
 
-  rafDraw(e) {
+  _rafDraw(e) {
     requestAnimationFrame(() => {
-      if (this.drawabled) {
-        const pos = this.getCoordinate(e);
-        this.draw(pos);
+      if (this._drawabled) {
+        const pos = this._getCoordinate(e);
+        this._draw(pos);
       }
     });
   }
 
-  throttleDraw(e) {
-    this.rafDraw(e);
-  }
-
-  start(e) {
-    e.preventDefault();
-    const pos = this.getCoordinate(e);
+  _start(e) {
     debug('start', pos)
-    this.drawabled = true;
-    this.ctx.beginPath();
-    this.ctx.moveTo(pos.x, pos.y);
-    this.draw(pos);
-
-    this.canvas.addEventListener('touchmove', this.move.bind(this), false);
-    this.canvas.addEventListener('mousemove', this.move.bind(this), false);
-  }
-
-  move(e) {
     e.preventDefault();
-    this.throttleDraw(e);
-  }
-
-  up(e) {
-    e.preventDefault();
-    if (this.drawabled) {
-      const pos = this.getCoordinate(e);
-      this.draw(pos);
+    const pos = this._getCoordinate(e);
+    this._drawabled = true;
+    if (!this._isHandWrittingModel) {
+      this.ctx.beginPath();
+      this.ctx.moveTo(pos.x, pos.y);
     }
-    this.drawabled = false;
+    this._draw(pos);
+  }
+
+  _move(e) {
+    if (this._drawabled){
+      e.preventDefault();
+      this._rafDraw(e);
+    }
+  }
+
+  _end(e) {
+    if (this._drawabled) {
+      e.preventDefault();
+      const pos = this._getCoordinate(e);
+      this._draw(pos);
+    }
+    this._drawabled = false;
     this.lastPos = {};
     this.lastR = 0;
-
-    this.canvas.removeEventListener('touchmove', this.move.bind(this), false);
-    this.canvas.removeEventListener('mousemove', this.move.bind(this), false);
   }
 
-  getCoordinate(e) {
-    const {left, top} = this.canvas.getBoundingClientRect();
-    e = this.__isMobile() ? e.touches[0] : e;
+  _getCanvasBounding() {
+    if (this._drawabled) { // 只在 _start的时候重新读取布局
+      return this._canvasBounding;
+    }
+    this._canvasBounding = this.canvas.getBoundingClientRect();
+    return this._canvasBounding;
+  }
+
+  _getCoordinate(e) {
+    const {left, top} = this._getCanvasBounding();
+    e = this._isMobile() ? e.touches[0] : e;
     return {
       x: e.clientX - left + 0.5,
       y: e.clientY - top + 0.5,
     }
   }
 
-  getDistance(pos1, pos2) {
+  _getDistance(pos1, pos2) {
     if (!pos1 || !pos2) {
       return 0;
     }
@@ -148,12 +183,8 @@ export default class HandWrite {
   }
 
   destroy() {
-    this.canvas.removeEventListener('touchstart', this.start.bind(this), false);
-    this.canvas.removeEventListener('mousedown', this.start.bind(this), false);
-    this.canvas.removeEventListener('touchmove', this.move.bind(this), false);
-    this.canvas.removeEventListener('mousemove', this.move.bind(this), false);
-    this.canvas.removeEventListener('touchend', this.up.bind(this), false);
-    this.canvas.removeEventListener('mouseup', this.up.bind(this), false);
+    this._removeTouchEvent();
+    this._removeMouseEvent();
   }
 
   clear() {
@@ -162,11 +193,11 @@ export default class HandWrite {
   }
 
   handWrittingModel() {
-    this.isHandWrittingModel = true;
+    this._isHandWrittingModel = true;
   }
 
   linearModel() {
-    this.isHandWrittingModel = false;
+    this._isHandWrittingModel = false;
   }
 
   formatType(type) {

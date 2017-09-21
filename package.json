@@ -1,8 +1,8 @@
 {
-  "name": "handWrite",
+  "name": "canvas-signature",
   "version": "1.0.0",
-  "main": "dist/handWrite.js",
-  "author": "robin",
+  "main": "index.js",
+  "author": "robin <lb.robin1991@gmail.com>",
   "license": "ISC",
   "scripts": {
     "start": "webpack-dev-server",
