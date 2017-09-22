@@ -22,7 +22,23 @@ open http://localhost:8080 in browser.
 import HandWrite from 'canvas-signature'
 
 const canvas = document.querySelector('#canvas');
-const instance = new HandWrite(canvas);
+const instance = new HandWrite(canvas[, options]);
+```
+
+## options && default
+
+```js
+const options = {
+  paintColor: '#f00',
+  backgroundColor: 'rgba(0, 0, 0, 0)',
+  isHandWrittingModel: true,
+  maxWidth: 15,
+  minWidth: 5,
+  writeSpeed: 30, // 书写速度，关联控制速度与笔画粗细的阈值
+  beforeWrite: ()=>{},
+  onWritting: ()=>{}, // 谨慎使用，可能造成性能问题
+  afterWrite: ()=>{},
+}
 ```
 
 ## API
