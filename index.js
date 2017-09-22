@@ -11,26 +11,42 @@ const addEventListener = (target, event, callback) => {
   }
 }
 export default class HandWrite {
-  constructor(canvas) {
+  constructor(canvas, options={}) {
     this.canvas = canvas;
-    const ctx = canvas.getContext('2d');
-    this.ctx = ctx;
-    this._resize();
+    this.ctx = canvas.getContext('2d');
 
-    ctx.fillStyle = '#f00';
-    ctx.strokeStyle = '#f00';
-    ctx.lineWidth = 3;
+    this.options = Object.assign({
+      paintColor: '#f00',
+      backgroundColor: 'rgba(0, 0, 0, 0)',
+      isHandWrittingModel: true,
+      maxWidth: 15,
+      minWidth: 5,
+      writeSpeed: 30, // 书写速度，关联控制速度与笔画粗细的阈值
+      beforeWrite: noop,
+      onWritting: noop, // 谨慎使用，可能造成性能问题
+      afterWrite: noop,
+    }, options);
+    options = null;
+
+    this._resize();
+    this._reset();
+    this._bindEvents();
+  }
+
+  _reset() {
+    const {ctx, options} = this;
+    ctx.fillStyle = options.paintColor;
+    ctx.strokeStyle = options.paintColor;
+    ctx.lineWidth = (options.maxWidth+options.minWidth)/2;
 
     this.lastPos = {};
     this._drawabled = false;
-    this._isHandWrittingModel = true;
-    this.bindEvents();
-
+    this._isHandWrittingModel = options.isHandWrittingModel;
   }
 
   _resize() {
     const devicePixelRatio = Math.max(window.devicePixelRatio||1, 1);
-    const {canvas, ctx} = this;
+    const {canvas, ctx, options} = this;
     const width = canvas.offsetWidth;
     const height = canvas.offsetHeight;
 
@@ -39,7 +55,7 @@ export default class HandWrite {
     ctx.scale(devicePixelRatio, devicePixelRatio); // 画布内容放大相同的倍数
   }
 
-  bindEvents() {
+  _bindEvents() {
     if (this._isMobile()){
       this._addTouchEvent();
     } else {
@@ -79,9 +95,51 @@ export default class HandWrite {
     return /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
   }
 
+  _start(e) {
+    e.preventDefault();
+    const {options, ctx} = this;
+    const pos = this._getCoordinate(e);
+    debug('start', pos)
+    options.beforeWrite.call(this, e, pos);
+    this._drawabled = true;
+    if (!this._isHandWrittingModel) {
+      ctx.beginPath();
+      ctx.moveTo(pos.x, pos.y);
+    }
+    this._draw(pos);
+  }
+
+  _move(e) {
+    if (this._drawabled){
+      e.preventDefault();
+      this._throttleDraw(e);
+    }
+  }
+
+  _end(e) {
+    if (this._drawabled) {
+      e.preventDefault();
+      const pos = this._getCoordinate(e);
+      this.options.afterWrite.call(this, e, pos);
+      this._draw(pos);
+    }
+    this._drawabled = false;
+    this.lastPos = {};
+    this._lastRadius = 0;
+  }
+
+  _throttleDraw(e) {
+    requestAnimationFrame(() => {
+      if (this._drawabled) {
+        const pos = this._getCoordinate(e);
+        this.options.onWritting.call(this, e, pos);
+        this._draw(pos);
+      }
+    });
+  }
+
   _draw(pos) {
-    const {ctx, lastPos, _isHandWrittingModel} = this;
-    if (_isHandWrittingModel) {
+    if (this._isHandWrittingModel) {
       this._drawWithArc(pos);
     } else {
       this._drawWithLine(pos);
@@ -94,66 +152,32 @@ export default class HandWrite {
     ctx.stroke();
   }
 
-  _drawWithArc(pos, r=3) {
-    const {ctx, lastPos, lastR=0} = this;
+  _drawWithArc(pos) {
+    const {ctx, lastPos, _lastRadius=0, options} = this;
     const distance = this._getDistance(pos, lastPos);
     if (distance < 2) { return false;} // 避免单点
-    const threshold = 30; // 移速相关，过大或过小都会造成笔画粗细不明显
-    let rate = distance > threshold ? 1 : distance/threshold;
-    const finalR = r + 2.5*r*(1-rate); // 笔画的目标粗细， lastR 为上一次笔画最终粗细
+
+    const threshold = options.writeSpeed; // 移速相关，过大或过小都会造成笔画粗细不明显
+    const rate = distance > threshold ? 1 : distance/threshold;
+    const midWidth = ctx.lineWidth;
+    const radius = midWidth/2;
+    const wave = midWidth-options.minWidth;
+    const finalRadius = radius + wave*(1-rate-0.5); // 本次笔画的目标粗细， _lastRadius 为上一次笔画最终粗细
 
     const len = Math.round(distance/2)+1;
-    for (let i = 0, or = 0; i < len; i++) { // 由于画的是圆，需要在两个圆之前添加补间，形成笔画
+    for (let i = 0, thisRadius = 0; i < len; i++) { // 由于画的是圆，需要在两个圆之前添加补间，形成笔画
       const x = lastPos.x + (pos.x-lastPos.x)/len*i;
       const y = lastPos.y + (pos.y-lastPos.y)/len*i;
-      or = lastR + (finalR - lastR)/len*i;
+      thisRadius = _lastRadius + (finalRadius - _lastRadius)/len*i;
       ctx.beginPath();
-      ctx.arc(x, y, or, 0, 2*PI);
+      ctx.arc(x, y, thisRadius, 0, 2*PI);
       ctx.fill();
     }
-    this.lastR = finalR;
+    this._lastRadius = finalRadius;
 
     lastPos.x = pos.x;
     lastPos.y = pos.y;
-  }
-
-  _rafDraw(e) {
-    requestAnimationFrame(() => {
-      if (this._drawabled) {
-        const pos = this._getCoordinate(e);
-        this._draw(pos);
-      }
-    });
-  }
-
-  _start(e) {
-    debug('start', pos)
-    e.preventDefault();
-    const pos = this._getCoordinate(e);
-    this._drawabled = true;
-    if (!this._isHandWrittingModel) {
-      this.ctx.beginPath();
-      this.ctx.moveTo(pos.x, pos.y);
-    }
-    this._draw(pos);
-  }
-
-  _move(e) {
-    if (this._drawabled){
-      e.preventDefault();
-      this._rafDraw(e);
-    }
-  }
-
-  _end(e) {
-    if (this._drawabled) {
-      e.preventDefault();
-      const pos = this._getCoordinate(e);
-      this._draw(pos);
-    }
-    this._drawabled = false;
-    this.lastPos = {};
-    this.lastR = 0;
+    // Todo 因为中文方正，表现还好，但是对于画圆，笔画会有棱角，不圆滑，需要贝塞尔曲线，计算量稍增。
   }
 
   _getCanvasBounding() {
@@ -185,11 +209,15 @@ export default class HandWrite {
   destroy() {
     this._removeTouchEvent();
     this._removeMouseEvent();
+    this.clear();
   }
 
   clear() {
-    const {canvas, ctx} = this;
+    const {canvas, ctx, options} = this;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = options.backgroundColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    this._reset();
   }
 
   handWrittingModel() {
@@ -200,19 +228,19 @@ export default class HandWrite {
     this._isHandWrittingModel = false;
   }
 
-  formatType(type) {
+  _formatType(type) {
     type = type.toLowerCase().replace(/jpg/i, 'jpeg');
 		type = 'image/' + type.match(/png|jpeg|bmp|gif/)[0];
     return type;
   }
 
   getImgData(type='png', canvas=this.canvas) {
-    type = this.formatType(type);
+    type = this._formatType(type);
     return canvas.toDataURL(type);
   }
 
   downloadImage(type='png', canvas = this.canvas) {
-    type = this.formatType(type);
+    type = this._formatType(type);
     const url = canvas.toDataURL(type).replace(type, 'image/octet-stream');
     document.location.href = url;
   }

@@ -2,7 +2,8 @@ import HandWrite from '../index.js'
 
 const canvas = document.querySelector('#canvas');
 
-const instance = new HandWrite(canvas);
+let timer = null;
+const instance = new HandWrite(canvas, {});
 
 const $rewrite = document.querySelector('.J-rewrite');
 const $linearModel = document.querySelector('.J-linear-model');
